@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BabyBase — Command Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#2F6B5E;
+    --primary-dark:#1F4A40;
+    --primary-light:#E4EEE9;
+    --accent:#D98F3B;
+    --accent-light:#FBEDD9;
+    --danger:#C24B4B;
+    --danger-light:#F8E4E4;
+    --warn:#C99A2E;
+    --warn-light:#FBF1D6;
+    --bg:#F7F6F2;
+    --card:#FFFFFF;
+    --ink:#23302B;
+    --ink-soft:#5C6B64;
+    --border:#E3E1D8;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:15px; line-height:1.5;
+  }
+  h1,h2,h3{ font-family:'Fraunces',serif; font-weight:600; margin:0; }
+  .app{ display:flex; min-height:100vh; }
+
+  /* ---- sidebar ---- */
+  .sidebar{
+    width:220px; background:var(--primary-dark); color:#EAF2EE; flex-shrink:0;
+    display:flex; flex-direction:column; padding:22px 14px;
+  }
+  .brand{ padding:0 8px 22px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:16px; }
+  .brand h1{ font-size:22px; color:#fff; }
+  .brand span{ display:block; font-size:11px; color:#B9D2C7; margin-top:2px; letter-spacing:.03em; }
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px;
+    color:#D9E9E2; cursor:pointer; font-size:14px; font-weight:500; margin-bottom:2px;
+    border:none; background:none; width:100%; text-align:left; font-family:inherit;
+  }
+  .nav-item:hover{ background:rgba(255,255,255,.08); }
+  .nav-item.active{ background:var(--accent); color:#3A2609; }
+  .sidebar-footer{ margin-top:auto; padding:12px 8px 0; font-size:11px; color:#8FAFA1; border-top:1px solid rgba(255,255,255,.12); }
+
+  /* ---- main ---- */
+  .main{ flex:1; padding:28px 32px; max-width:1180px; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+  .topbar h2{ font-size:24px; }
+  .topbar .sub{ color:var(--ink-soft); font-size:13px; margin-top:2px; }
+  .btn{
+    font-family:inherit; font-size:13px; font-weight:600; padding:9px 16px; border-radius:8px;
+    border:1px solid var(--border); background:var(--card); color:var(--ink); cursor:pointer;
+  }
+  .btn:hover{ border-color:var(--primary); }
+  .btn.primary{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .btn.primary:hover{ background:var(--primary-dark); }
+  .btn.danger{ background:var(--danger); color:#fff; border-color:var(--danger); }
+  .btn.small{ padding:5px 10px; font-size:12px; }
+
+  .grid{ display:grid; gap:16px; }
+  .grid.kpi{ grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin-bottom:22px; }
+  .grid.two{ grid-template-columns:1fr 1fr; }
+  @media(max-width:900px){ .grid.two{ grid-template-columns:1fr; } .app{ flex-direction:column; } .sidebar{ width:100%; flex-direction:row; overflow-x:auto; } .nav-item{ white-space:nowrap; } .main{ padding:20px; } }
+
+  .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; }
+  .kpi .card{ padding:16px 18px; }
+  .kpi-label{ font-size:12px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .kpi-value{ font-family:'Fraunces',serif; font-size:26px; font-weight:600; margin-top:6px; }
+  .kpi-sub{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); padding:8px 10px; border-bottom:1px solid var(--border); }
+  td{ padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .table-wrap{ overflow-x:auto; }
+
+  .pill{ display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:600; }
+  .pill.ok{ background:var(--primary-light); color:var(--primary-dark); }
+  .pill.low{ background:var(--warn-light); color:#7A5A0F; }
+  .pill.reorder{ background:var(--accent-light); color:#8A5518; }
+  .pill.out{ background:var(--danger-light); color:#7A2626; }
+  .pill.active{ background:var(--primary-light); color:var(--primary-dark); }
+  .pill.due{ background:var(--warn-light); color:#7A5A0F; }
+  .pill.overdue{ background:var(--accent-light); color:#8A5518; }
+  .pill.dormant{ background:var(--danger-light); color:#7A2626; }
+
+  input,select,textarea{
+    font-family:inherit; font-size:14px; padding:9px 11px; border:1px solid var(--border);
+    border-radius:8px; width:100%; background:#fff; color:var(--ink);
+  }
+  label{ font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:5px; margin-top:12px; }
+  .form-row{ display:flex; gap:12px; }
+  .form-row > div{ flex:1; }
+
+  .section-title{ font-size:15px; font-weight:600; margin:26px 0 10px; color:var(--primary-dark); }
+  .empty{ color:var(--ink-soft); font-size:13px; padding:20px; text-align:center; }
+  .toast{
+    position:fixed; bottom:20px; right:20px; background:var(--primary-dark); color:#fff;
+    padding:12px 18px; border-radius:10px; font-size:13px; font-weight:500; box-shadow:0 6px 20px rgba(0,0,0,.2);
+    opacity:0; transform:translateY(10px); transition:all .25s; pointer-events:none; z-index:999;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+  .toast.err{ background:var(--danger); }
+
+  .setup-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); padding:20px; }
+  .setup-card{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:36px; max-width:440px; width:100%; }
+  .setup-card h1{ font-size:26px; color:var(--primary-dark); margin-bottom:6px; }
+  .setup-card p{ color:var(--ink-soft); font-size:13px; margin-bottom:20px; }
+
+  .badge-child{ font-size:11px; background:var(--accent-light); color:#8A5518; padding:2px 8px; border-radius:99px; margin-left:6px; }
+  .progress{ height:8px; background:var(--border); border-radius:99px; overflow:hidden; margin-top:8px; }
+  .progress > div{ height:100%; background:var(--primary); border-radius:99px; }
+</style>
+</head>
+<body>
+
+<div id="setup" class="setup-screen" style="display:none;">
+  <div class="setup-card">
+    <h1>BabyBase</h1>
+    <p>Powered by BYINFORGH Solutions. Paste the Web App URL from your Apps Script deployment to connect this dashboard to your store's Google Sheet.</p>
+    <label>Web App URL (ends in /exec)</label>
+    <input id="setupUrlInput" placeholder="https://script.google.com/macros/s/…/exec">
+    <button class="btn primary" style="margin-top:16px;width:100%;" onclick="saveWebAppUrl()">Connect</button>
+  </div>
+</div>
+
+<div id="app" class="app" style="display:none;">
+  <div class="sidebar">
+    <div class="brand">
+      <h1 id="brandName">BabyBase</h1>
+      <span>Powered by BYINFORGH Solutions</span>
+    </div>
+    <button class="nav-item active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="nav-item" data-tab="inventory" onclick="switchTab('inventory')">Inventory</button>
+    <button class="nav-item" data-tab="sell" onclick="switchTab('sell')">Sell</button>
+    <button class="nav-item" data-tab="sales" onclick="switchTab('sales')">Sales log</button>
+    <button class="nav-item" data-tab="clients" onclick="switchTab('clients')">Clients</button>
+    <button class="nav-item" data-tab="money" onclick="switchTab('money')">Money</button>
+    <button class="nav-item" data-tab="followups" onclick="switchTab('followups')">Follow-ups</button>
+    <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">Settings</button>
+    <div class="sidebar-footer">
+      <div id="lastUpdated">—</div>
+      <button class="btn small" style="margin-top:8px;width:100%;" onclick="loadData(true)">Refresh</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h2 id="pageTitle">Overview</h2>
+        <div class="sub" id="pageSub">Today's snapshot</div>
+      </div>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+var WEB_APP_URL = localStorage.getItem('babybase_url') || '';
+var DATA = null;
+var CURRENCY = 'GHS';
+
+function saveWebAppUrl(){
+  var v = document.getElementById('setupUrlInput').value.trim();
+  if(!v){ showToast('Paste the Web App URL first', true); return; }
+  localStorage.setItem('babybase_url', v);
+  WEB_APP_URL = v;
+  document.getElementById('setup').style.display='none';
+  document.getElementById('app').style.display='flex';
+  loadData();
+}
+
+function showToast(msg, isErr){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(function(){ t.className='toast'; }, 3200);
+}
+
+function api(action, params, isWrite){
+  params = params || {};
+  params.action = action;
+  var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+  return fetch(WEB_APP_URL + '?' + qs).then(function(r){ return r.json(); }).then(function(res){
+    if(res.error){ showToast(res.error, true); throw new Error(res.error); }
+    if(isWrite) showToast('Saved');
+    return res;
+  });
+}
+
+function loadData(manual){
+  if(manual) showToast('Refreshing…');
+  api('getData', {}).then(function(res){
+    DATA = res;
+    CURRENCY = (res.settings && res.settings.currency) || 'GHS';
+    applyBranding();
+    document.getElementById('lastUpdated').textContent = 'Updated ' + new Date(res.lastUpdated).toLocaleTimeString();
+    render();
+  }).catch(function(){});
+}
+
+function applyBranding(){
+  var s = DATA.settings || {};
+  document.documentElement.style.setProperty('--primary', s.primary_color || '#2F6B5E');
+  document.documentElement.style.setProperty('--accent', s.accent_color || '#D98F3B');
+  document.getElementById('brandName').textContent = s.business_name || 'BabyBase';
+}
+
+function money(n){ return CURRENCY + ' ' + (n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+var currentTab = 'overview';
+var TAB_TITLES = { overview:['Overview','Today\'s snapshot'], inventory:['Inventory','Live stock across every product and variant'],
+  sell:['Sell','Record a sale by stock code or barcode'], sales:['Sales log','Every recorded sale'],
+  clients:['Clients','Customer directory and child growth tracking'], money:['Money','Expenses, debtors and creditors'],
+  followups:['Follow-ups','What needs attention today'], settings:['Settings','Shop info, targets and alerts'] };
+
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===tab); });
+  document.getElementById('pageTitle').textContent = TAB_TITLES[tab][0];
+  document.getElementById('pageSub').textContent = TAB_TITLES[tab][1];
+  render();
+}
+
+function render(){
+  if(!DATA) return;
+  var fn = { overview:renderOverview, inventory:renderInventory, sell:renderSell, sales:renderSales,
+    clients:renderClients, money:renderMoney, followups:renderFollowUps, settings:renderSettings }[currentTab];
+  document.getElementById('content').innerHTML = fn();
+}
+
+// ---------- OVERVIEW ----------
+function renderOverview(){
+  var pb = (DATA.tracker && DATA.tracker.periodBreakdown) || {};
+  var rev = DATA.revenue || {};
+  var alerts = (DATA.tracker && DATA.tracker.reorder) || {};
+  var pace = Math.min(100, rev.pacePct || 0);
+  var html = '<div class="grid kpi">';
+  html += kpiCard('Today', money((pb.today||{}).revenue), (pb.today||{}).transactions + ' sale(s)');
+  html += kpiCard('This week', money((pb.week||{}).revenue), (pb.week||{}).transactions + ' sale(s)');
+  html += kpiCard('This month', money((pb.month||{}).revenue), 'Pace: ' + pace + '% of target');
+  html += kpiCard('All time', money((pb.allTime||{}).revenue), (pb.allTime||{}).transactions + ' sale(s) total');
+  html += '</div>';
+
+  html += '<div class="card" style="margin-bottom:22px;">';
+  html += '<div class="kpi-label">Monthly target progress</div>';
+  html += '<div class="progress"><div style="width:'+pace+'%"></div></div>';
+  html += '<div class="kpi-sub" style="margin-top:8px;">'+money(rev.monthlyActual)+' of '+money(rev.monthlyTarget)+' target &middot; '+money(rev.gapToTarget)+' remaining</div>';
+  html += '</div>';
+
+  html += '<div class="grid two">';
+  html += '<div class="card"><div class="kpi-label">Stock alerts</div>';
+  if((alerts.outOfStockCount||0)+(alerts.reorderCount||0)+(alerts.lowStockCount||0) === 0){
+    html += '<div class="empty">Everything is stocked. Nothing needs attention.</div>';
+  } else {
+    html += '<div style="margin-top:10px;">';
+    if(alerts.outOfStockCount) html += '<div><span class="pill out">Out of stock</span> '+alerts.outOfStockCount+' item(s)</div>';
+    if(alerts.reorderCount) html += '<div style="margin-top:6px;"><span class="pill reorder">Reorder</span> '+alerts.reorderCount+' item(s)</div>';
+    if(alerts.lowStockCount) html += '<div style="margin-top:6px;"><span class="pill low">Low stock</span> '+alerts.lowStockCount+' item(s)</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  var fu = (DATA.followUps && DATA.followUps.items) || [];
+  html += '<div class="card"><div class="kpi-label">Next up</div>';
+  if(fu.length===0){ html += '<div class="empty">Nothing needs attention right now.</div>'; }
+  else {
+    html += '<table style="margin-top:8px;">';
+    fu.slice(0,5).forEach(function(f){ html += '<tr><td><strong>'+esc(f.kind)+'</strong><br><span style="color:var(--ink-soft);font-size:12px;">'+esc(f.name||'')+'</span></td><td style="font-size:12px;">'+esc(f.detail)+'</td></tr>'; });
+    html += '</table>';
+  }
+  html += '</div></div>';
+  return html;
+}
+function kpiCard(label, value, sub){
+  return '<div class="card"><div class="kpi-label">'+esc(label)+'</div><div class="kpi-value">'+value+'</div><div class="kpi-sub">'+esc(sub)+'</div></div>';
+}
+
+// ---------- INVENTORY ----------
+function renderInventory(){
+  var groups = DATA.inventoryGrouped || [];
+  if(groups.length===0) return '<div class="empty">No products yet. Add your first product in Settings &gt; Catalog, or run the starter demo catalog from the BabyBase menu in the Sheet.</div>';
+  var html = '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>Variants</th><th>Total stock</th><th>Stock value</th><th>Status</th></tr></thead><tbody>';
+  groups.forEach(function(g){
+    html += '<tr><td><strong>'+esc(g.parentProduct)+'</strong></td><td>'+esc(g.category||'')+'</td><td>'+g.variants.length+'</td><td>'+g.totalStock+'</td><td>'+money(g.totalStockValue)+'</td><td>'+statusPill(g.worstStatus)+'</td></tr>';
+    g.variants.forEach(function(v){
+      html += '<tr style="background:var(--bg);"><td style="padding-left:26px;color:var(--ink-soft);">'+esc(v.variant||v.stockCode)+' <span style="color:var(--ink-soft);font-size:11px;">('+esc(v.stockCode)+')</span></td><td></td><td></td><td>'+v.currentStock+'</td><td>'+money(v.stockValueRetail)+'</td><td>'+statusPill(v.status)+'</td></tr>';
+    });
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+function statusPill(s){
+  var cls = s==='OK'?'ok':s==='LOW STOCK'?'low':s==='REORDER'?'reorder':'out';
+  return '<span class="pill '+cls+'">'+esc(s)+'</span>';
+}
+
+// ---------- SELL ----------
+function renderSell(){
+  var staffOpts = (DATA.staff||[]).map(function(s){ return '<option>'+esc(s)+'</option>'; }).join('');
+  var html = '<div class="card" style="max-width:520px;">';
+  html += '<label>Stock code or barcode</label><input id="sellCode" placeholder="Scan or type…">';
+  html += '<div class="form-row"><div><label>Quantity</label><input id="sellQty" type="number" min="1" value="1"></div>';
+  html += '<div><label>Discount %</label><input id="sellDiscount" type="number" min="0" max="100" value="0"></div></div>';
+  html += '<label>Customer (optional)</label><input id="sellCustomer" placeholder="Customer name">';
+  html += '<div class="form-row"><div><label>Payment method</label><select id="sellPayment"><option>Cash</option><option>MoMo</option><option>Card</option><option>Bank transfer</option></select></div>';
+  html += '<div><label>Staff</label><select id="sellStaff">'+staffOpts+'</select></div></div>';
+  html += '<label>Notes</label><input id="sellNotes" placeholder="Optional">';
+  html += '<button class="btn primary" style="margin-top:18px;width:100%;" onclick="submitSale()">Confirm sale</button>';
+  html += '</div>';
+  return html;
+}
+function submitSale(){
+  var p = {
+    stockCode: document.getElementById('sellCode').value.trim(),
+    qty: document.getElementById('sellQty').value,
+    discountPct: document.getElementById('sellDiscount').value,
+    customer: document.getElementById('sellCustomer').value,
+    paymentMethod: document.getElementById('sellPayment').value,
+    staff: document.getElementById('sellStaff').value,
+    notes: document.getElementById('sellNotes').value
+  };
+  if(!p.stockCode){ showToast('Enter a stock code or barcode', true); return; }
+  api('addSale', p, true).then(function(res){
+    showToast('Sale logged: '+res.product+' — '+money(res.revenue));
+    document.getElementById('sellCode').value='';
+    document.getElementById('sellQty').value='1';
+    document.getElementById('sellCustomer').value='';
+    document.getElementById('sellNotes').value='';
+    loadData();
+  });
+}
+
+// ---------- SALES LOG ----------
+function renderSales(){
+  var rows = (DATA.sales && DATA.sales.rows) || [];
+  if(rows.length===0) return '<div class="empty">No sales recorded yet.</div>';
+  var html = '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Revenue</th><th>Profit</th><th>Customer</th><th>Staff</th></tr></thead><tbody>';
+  rows.slice(0,100).forEach(function(s){
+    html += '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.product)+(s.variant?' <span style="color:var(--ink-soft);">('+esc(s.variant)+')</span>':'')+'</td><td>'+s.qty+'</td><td>'+money(s.revenue)+'</td><td>'+money(s.grossProfit)+'</td><td>'+esc(s.customer||'—')+'</td><td>'+esc(s.staff||'—')+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// ---------- CLIENTS ----------
+function renderClients(){
+  var rows = (DATA.clients && DATA.clients.rows) || [];
+  var health = {}; ((DATA.clientHealth||{}).rows||[]).forEach(function(h){ health[h.customer]=h; });
+  var html = '<div class="card" style="margin-bottom:18px;max-width:640px;">';
+  html += '<div class="section-title" style="margin-top:0;">Add a client</div>';
+  html += '<div class="form-row"><div><label>Name</label><input id="cliName"></div><div><label>Number</label><input id="cliNumber"></div></div>';
+  html += '<div class="form-row"><div><label>Child name</label><input id="cliChildName"></div><div><label>Child date of birth</label><input id="cliChildDob" placeholder="DD/MM/YYYY"></div></div>';
+  html += '<label>Location</label><input id="cliLocation">';
+  html += '<button class="btn primary small" style="margin-top:14px;" onclick="submitClient()">Add client</button>';
+  html += '</div>';
+
+  if(rows.length===0){ html += '<div class="empty">No clients yet.</div>'; return html; }
+  html += '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Number</th><th>Child</th><th>Status</th><th>Total spent</th><th>Tier</th></tr></thead><tbody>';
+  rows.forEach(function(c){
+    var h = health[c['Name']];
+    html += '<tr><td><strong>'+esc(c['Name'])+'</strong></td><td>'+esc(c['Number']||'—')+'</td><td>'+(c['Child Name']?esc(c['Child Name'])+' <span class="badge-child">'+esc(c['Child DOB']||'')+'</span>':'—')+'</td>';
+    html += '<td>'+(h?statusPillClient(h.status,h.label):'—')+'</td><td>'+(h?money(h.totalRevenue):'—')+'</td><td>'+(h?esc(h.tier):'—')+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+function statusPillClient(status,label){ return '<span class="pill '+status+'">'+esc(label)+'</span>'; }
+function submitClient(){
+  var p = { Name: document.getElementById('cliName').value, Number: document.getElementById('cliNumber').value,
+    'Child Name': document.getElementById('cliChildName').value, 'Child DOB': document.getElementById('cliChildDob').value,
+    Location: document.getElementById('cliLocation').value };
+  if(!p.Name){ showToast('Client name is required', true); return; }
+  api('addClient', p, true).then(function(){ loadData(); });
+}
+
+// ---------- MONEY (expenses + debtors/creditors) ----------
+function renderMoney(){
+  var exp = (DATA.expenses && DATA.expenses.rows) || [];
+  var dc = DATA.debtorsCreditors || {};
+  var html = '<div class="grid two" style="margin-bottom:22px;">';
+  html += kpiCard('Total expenses', money((DATA.tracker.profitDash||{}).totalExpenses), 'All time');
+  html += kpiCard('Owed to you', money(((dc.debtors||{}).summary||{}).totalBalance), (((dc.debtors||{}).summary||{}).overdueCount||0)+' overdue');
+  html += '</div>';
+
+  html += '<div class="card" style="margin-bottom:18px;max-width:640px;">';
+  html += '<div class="section-title" style="margin-top:0;">Log an expense</div>';
+  html += '<div class="form-row"><div><label>Category</label><input id="expCat" placeholder="e.g. Rent, Transport"></div><div><label>Amount</label><input id="expAmt" type="number"></div></div>';
+  html += '<label>Description</label><input id="expDesc">';
+  html += '<button class="btn primary small" style="margin-top:14px;" onclick="submitExpense()">Add expense</button>';
+  html += '</div>';
+
+  html += '<div class="section-title">Recent expenses</div>';
+  if(exp.length===0){ html += '<div class="empty">No expenses logged yet.</div>'; }
+  else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead><tbody>';
+    exp.slice(0,50).forEach(function(e){ html += '<tr><td>'+esc(e['Date'])+'</td><td>'+esc(e['Category'])+'</td><td>'+esc(e['Description']||'')+'</td><td>'+money(e['Amount'])+'</td></tr>'; });
+    html += '</tbody></table></div>';
+  }
+
+  html += '<div class="section-title">Debtors</div>';
+  var drows = ((dc.debtors||{}).rows)||[];
+  if(drows.length===0){ html += '<div class="empty">No debtors on file.</div>'; }
+  else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>';
+    drows.forEach(function(d){ html += '<tr><td>'+esc(d.name)+'</td><td>'+money(d.amountOwed)+'</td><td>'+money(d.amountPaid)+'</td><td>'+money(d.balance)+'</td><td>'+esc(d.status)+'</td></tr>'; });
+    html += '</tbody></table></div>';
+  }
+  return html;
+}
+function submitExpense(){
+  var p = { Category: document.getElementById('expCat').value, Amount: document.getElementById('expAmt').value, Description: document.getElementById('expDesc').value, Date: '' };
+  if(!p.Category || !p.Amount){ showToast('Category and amount are required', true); return; }
+  api('addExpense', p, true).then(function(){ loadData(); });
+}
+
+// ---------- FOLLOW-UPS ----------
+function renderFollowUps(){
+  var items = (DATA.followUps && DATA.followUps.items) || [];
+  if(items.length===0) return '<div class="empty">Nothing needs attention right now.</div>';
+  var html = '<div class="table-wrap"><table><thead><tr><th>Type</th><th>Who</th><th>Detail</th><th>Timing</th></tr></thead><tbody>';
+  items.forEach(function(f){
+    var timing = f.daysUntil===null ? '—' : f.daysUntil<0 ? Math.abs(f.daysUntil)+'d overdue' : f.daysUntil===0 ? 'Today' : 'in '+f.daysUntil+'d';
+    html += '<tr><td><strong>'+esc(f.kind)+'</strong></td><td>'+esc(f.name||'')+'</td><td>'+esc(f.detail)+'</td><td>'+timing+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// ---------- SETTINGS ----------
+function renderSettings(){
+  var s = DATA.settings || {};
+  var html = '<div class="grid two">';
+  html += '<div class="card">';
+  html += '<div class="section-title" style="margin-top:0;">Shop info</div>';
+  html += settingField('business_name','Shop name',s.business_name);
+  html += settingField('owner_name','Owner name',s.owner_name);
+  html += settingField('business_location','Location',s.business_location);
+  html += settingField('business_phone','Phone',s.business_phone);
+  html += settingField('currency','Currency code',s.currency);
+  html += '</div>';
+
+  html += '<div class="card">';
+  html += '<div class="section-title" style="margin-top:0;">Targets & alerts</div>';
+  html += settingField('monthly_target','Monthly revenue target',s.monthly_target,'number');
+  html += settingField('working_days','Working days per month',s.working_days,'number');
+  html += settingField('low_stock_multiplier','Low stock multiplier',s.low_stock_multiplier,'number');
+  html += settingField('alert_webhook_url','Stock alert webhook URL (optional)',s.alert_webhook_url);
+  html += '</div></div>';
+
+  html += '<div class="card" style="margin-top:18px;">';
+  html += '<div class="section-title" style="margin-top:0;">Brand colours</div>';
+  html += '<div class="form-row">';
+  html += '<div><label>Primary colour</label><input type="color" id="set_primary_color" value="'+(s.primary_color||'#2F6B5E')+'"></div>';
+  html += '<div><label>Accent colour</label><input type="color" id="set_accent_color" value="'+(s.accent_color||'#D98F3B')+'"></div>';
+  html += '</div></div>';
+
+  html += '<button class="btn primary" style="margin-top:18px;" onclick="saveAllSettings()">Save settings</button>';
+  html += '<button class="btn" style="margin-top:18px;margin-left:10px;" onclick="disconnect()">Disconnect this dashboard</button>';
+  return html;
+}
+function settingField(key,label,val,type){
+  return '<label>'+esc(label)+'</label><input id="set_'+key+'" type="'+(type||'text')+'" value="'+esc(val||'')+'">';
+}
+function saveAllSettings(){
+  var keys = ['business_name','owner_name','business_location','business_phone','currency','monthly_target','working_days','low_stock_multiplier','alert_webhook_url','primary_color','accent_color'];
+  var p = {};
+  keys.forEach(function(k){ var el = document.getElementById('set_'+k); if(el) p[k] = el.value; });
+  api('saveSettings', p, true).then(function(){ loadData(); });
+}
+function disconnect(){
+  if(!confirm('This clears the saved Web App URL on this device only — your Sheet and data are untouched. Continue?')) return;
+  localStorage.removeItem('babybase_url');
+  location.reload();
+}
+
+function esc(s){ return (s===undefined||s===null?'':String(s)).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+// ---------- BOOT ----------
+if(WEB_APP_URL){
+  document.getElementById('app').style.display='flex';
+  loadData();
+} else {
+  document.getElementById('setup').style.display='flex';
+}
+</script>
+</body>
+</html>
