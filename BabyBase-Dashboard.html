@@ -151,6 +151,43 @@
   .badge-child{ font-size:10.5px; background:var(--blush-light); color:#9B4A5A; padding:2px 8px; border-radius:99px; margin-left:6px; font-weight:700; }
   .progress{ height:9px; background:var(--border); border-radius:99px; overflow:hidden; margin-top:8px; }
   .progress > div{ height:100%; background:linear-gradient(90deg,var(--primary),var(--sage)); border-radius:99px; }
+
+  /* ---- connection banner ---- */
+  .conn-banner{
+    display:none; align-items:center; gap:12px; background:var(--danger-light); color:#8A362D;
+    border:1px solid var(--danger); border-radius:11px; padding:11px 16px; margin-bottom:18px; font-size:13px; font-weight:600;
+  }
+  .conn-banner svg{ flex-shrink:0; }
+  .conn-banner .conn-banner-text{ flex:1; }
+
+  /* ---- loading overlay & inline spinner ---- */
+  .loading-overlay{
+    position:fixed; inset:0; background:rgba(251,247,241,.6); display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; z-index:1000;
+  }
+  .spinner{ width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:babybase-spin .8s linear infinite; }
+  .spinner.small{ width:14px; height:14px; border-width:2px; display:inline-block; vertical-align:middle; margin-right:6px; }
+  @keyframes babybase-spin{ to{ transform:rotate(360deg); } }
+  .loading-overlay .loading-label{ font-size:13px; color:var(--ink-soft); font-weight:600; }
+  .kpi.skeleton .card{ min-height:74px; position:relative; overflow:hidden; }
+  .kpi.skeleton .card::after{
+    content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);
+    transform:translateX(-100%); animation:babybase-shimmer 1.3s infinite;
+  }
+  @keyframes babybase-shimmer{ to{ transform:translateX(100%); } }
+
+  /* ---- pending offline-sync badge ---- */
+  .pending-badge{
+    display:none; font-size:11px; font-weight:700; color:#8A6113; background:var(--sun-light);
+    border-radius:8px; padding:6px 8px; margin-top:8px; text-align:center;
+  }
+
+  /* ---- payment method breakdown bars ---- */
+  .payment-bar-row{ display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12.5px; }
+  .payment-bar-label{ width:110px; flex-shrink:0; color:var(--ink-soft); }
+  .payment-bar-track{ flex:1; height:8px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .payment-bar-fill{ height:100%; background:var(--primary); border-radius:99px; }
+  .payment-bar-value{ width:88px; flex-shrink:0; text-align:right; font-weight:600; }
 </style>
 </head>
 <body>
@@ -217,10 +254,16 @@
     <div class="sidebar-footer">
       <div id="lastUpdated">Not connected yet</div>
       <button class="btn small" style="margin-top:8px;width:100%;" onclick="loadData(true)">Refresh</button>
+      <div id="pendingSync" class="pending-badge"></div>
     </div>
   </div>
 
   <div class="main">
+    <div id="connBanner" class="conn-banner">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span class="conn-banner-text">Couldn't reach your Sheet — check your internet connection or that the Web App URL is still correct.</span>
+      <button class="btn small" onclick="loadData(true)">Retry</button>
+    </div>
     <div class="topbar">
       <div class="topbar-head">
         <div class="topbar-icon" id="pageIcon"></div>
@@ -236,6 +279,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
+<div id="globalLoading" class="loading-overlay"><div class="spinner"></div><div class="loading-label">Loading your store…</div></div>
 
 <script>
 var WEB_APP_URL = localStorage.getItem('babybase_url') || '';
@@ -259,19 +303,90 @@ function showToast(msg, isErr){
   setTimeout(function(){ t.className='toast'; }, 3200);
 }
 
+// ---------- connection banner ----------
+function showConnError(msg){
+  var b = document.getElementById('connBanner');
+  if(!b) return;
+  b.style.display = 'flex';
+  b.querySelector('.conn-banner-text').textContent = msg || "Couldn't reach your Sheet — check your internet connection or that the Web App URL is still correct.";
+}
+function hideConnError(){
+  var b = document.getElementById('connBanner');
+  if(b) b.style.display = 'none';
+}
+
+// ---------- loading overlay ----------
+var loadingCount = 0;
+function showLoading(on){
+  loadingCount = Math.max(0, loadingCount + (on ? 1 : -1));
+  var el = document.getElementById('globalLoading');
+  if(el) el.style.display = loadingCount > 0 ? 'flex' : 'none';
+}
+
+// ---------- offline write queue ----------
+var QUEUE_KEY = 'babybase_queue';
+function getQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch(e){ return []; } }
+function setQueue(q){ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); updatePendingBadge(); }
+function queueWrite(action, params){ var q = getQueue(); q.push({action:action, params:params, ts:Date.now()}); setQueue(q); }
+function updatePendingBadge(){
+  var q = getQueue();
+  var el = document.getElementById('pendingSync');
+  if(!el) return;
+  if(q.length){ el.style.display='block'; el.textContent = '⏳ ' + q.length + ' change(s) waiting to sync'; }
+  else { el.style.display='none'; }
+}
+function flushQueue(){
+  var q = getQueue();
+  if(!q.length) return;
+  var remaining = [], synced = 0;
+  var chain = Promise.resolve();
+  q.forEach(function(item){
+    chain = chain.then(function(){
+      return rawApi(item.action, item.params).then(function(res){
+        if(!res.error) synced++;
+        // a server-side error on a queued item (e.g. stock code since deleted) is dropped rather than retried forever
+      }).catch(function(err){
+        if(err && err.networkError) remaining.push(item); // still offline, try again next time
+      });
+    });
+  });
+  chain.then(function(){
+    setQueue(remaining);
+    if(synced > 0){ showToast(synced + ' offline change(s) synced'); loadData(); }
+  });
+}
+window.addEventListener('online', function(){ flushQueue(); });
+
+// ---------- low-level fetch, no UX side effects, used by both api() and the offline queue ----------
+function rawApi(action, params){
+  var full = Object.assign({}, params || {}, {action: action});
+  var qs = Object.keys(full).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(full[k]===undefined?'':full[k]); }).join('&');
+  return fetch(WEB_APP_URL + '?' + qs).catch(function(){ throw {networkError:true}; })
+    .then(function(r){ return r.json().catch(function(){ throw {networkError:true}; }); });
+}
+
 function api(action, params, isWrite){
-  params = params || {};
-  params.action = action;
-  var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]===undefined?'':params[k]); }).join('&');
-  return fetch(WEB_APP_URL + '?' + qs).then(function(r){ return r.json(); }).then(function(res){
-    if(res.error){ showToast(res.error, true); throw new Error(res.error); }
+  return rawApi(action, params).then(function(res){
+    hideConnError();
+    if(res.error){ showToast(res.error, true); throw {serverError:true, message:res.error}; }
     if(isWrite) showToast('Saved');
     return res;
+  }).catch(function(err){
+    if(err && err.networkError){
+      if(isWrite){
+        queueWrite(action, params);
+        showToast("Offline — saved on this device, will sync automatically once you're back online", true);
+      } else {
+        showConnError();
+      }
+    }
+    throw err;
   });
 }
 
 function loadData(manual){
   if(manual) showToast('Refreshing…');
+  showLoading(true);
   api('getData', {}).then(function(res){
     DATA = res;
     CURRENCY = (res.settings && res.settings.currency) || 'GHS';
@@ -279,8 +394,14 @@ function loadData(manual){
     document.getElementById('lastUpdated').textContent = 'Updated ' + new Date(res.lastUpdated).toLocaleTimeString();
     renderNav();
     render();
-  }).catch(function(){});
+    flushQueue();
+  }).catch(function(){
+    // already surfaced via showConnError() / showToast() inside api()
+  }).then(function(){
+    showLoading(false);
+  });
 }
+updatePendingBadge();
 
 function applyBranding(){
   var s = DATA.settings || {};
@@ -289,8 +410,17 @@ function applyBranding(){
   document.getElementById('brandName').textContent = s.business_name || 'BabyBase';
 }
 
-function money(n){ return CURRENCY + ' ' + (n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function money(n){ n = parseFloat(n)||0; return CURRENCY + ' ' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function esc(s){ return (s===undefined||s===null?'':String(s)).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+// Matches the backend's own todayStr() format (dd/MM/yyyy, Africa/Accra).
+// Used wherever a write needs "today" rather than leaving a Date field
+// blank, since a blank Date silently breaks later date-based reads
+// (exports, the referral golden-window check, etc).
+function clientTodayStr(){
+  var d = new Date();
+  var pad = function(n){ return n<10 ? '0'+n : ''+n; };
+  return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
+}
 
 // ============================================================
 // ICONS, small consistent line-icon set, one per section
@@ -378,7 +508,10 @@ function updateHeader(){
 }
 
 function render(){
-  if(!DATA) return;
+  if(!DATA){
+    document.getElementById('content').innerHTML = '<div class="grid kpi skeleton"><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>';
+    return;
+  }
   var out;
   switch(currentTab){
     case 'overview': out = renderOverview(); break;
@@ -458,8 +591,63 @@ function renderOverview(){
   }
   html += '</div></div>';
 
+  var salesRows = (DATA.sales && DATA.sales.rows) || [];
+  var pmTotals = paymentBreakdown(salesRows);
+  var pmMax = Math.max.apply(null, [1].concat(Object.keys(pmTotals).map(function(k){ return pmTotals[k]; })));
+  html += '<div class="card" style="margin-top:18px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;"><div class="kpi-label">Payment methods, this month</div>';
+  html += '<button class="btn small" onclick="exportMonthCSV()">Export this month (CSV)</button></div>';
+  var pmKeys = Object.keys(pmTotals);
+  if(pmKeys.length===0){ html += '<div class="empty" style="padding:14px 10px;">No sales recorded this month yet.</div>'; }
+  else {
+    pmKeys.sort(function(a,b){ return pmTotals[b]-pmTotals[a]; }).forEach(function(k){
+      var pct = pmMax ? Math.round((pmTotals[k]/pmMax)*100) : 0;
+      html += '<div class="payment-bar-row"><span class="payment-bar-label">'+esc(k)+'</span><div class="payment-bar-track"><div class="payment-bar-fill" style="width:'+pct+'%"></div></div><span class="payment-bar-value">'+money(pmTotals[k])+'</span></div>';
+    });
+  }
+  html += '</div>';
+
   html += '<div class="about-block" style="margin-top:26px;"><strong>'+esc((DATA.settings||{}).business_name||'Your store')+'</strong> is running on BabyBase, powered by BYINFORGH Solutions, your data lives only in your own Google Sheet.</div>';
   return html;
+}
+
+// ---------- payment method reconciliation (client-side, from loaded sales rows) ----------
+function paymentBreakdown(rows){
+  var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  var totals = {};
+  (rows||[]).forEach(function(s){
+    var d = new Date(s.date);
+    if(isNaN(d) || d.getFullYear()!==y || d.getMonth()!==m) return;
+    var method = s.paymentMethod || 'Not recorded';
+    totals[method] = (totals[method]||0) + (s.revenue||0);
+  });
+  return totals;
+}
+
+// ---------- CSV export (client-side, no backend change needed) ----------
+function csvEscape(v){
+  v = (v===undefined||v===null) ? '' : String(v);
+  if(/[",\n]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+function exportMonthCSV(){
+  var rows = (DATA.sales && DATA.sales.rows) || [];
+  var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  var monthRows = rows.filter(function(s){ var d = new Date(s.date); return !isNaN(d) && d.getFullYear()===y && d.getMonth()===m; });
+  if(monthRows.length===0){ showToast('No sales recorded this month yet', true); return; }
+  var headers = ['Date','Product','Variant','Qty','Revenue','Profit','Payment method','Customer','Staff'];
+  var csvRows = [headers.map(csvEscape).join(',')];
+  monthRows.forEach(function(s){
+    csvRows.push([s.date, s.product, s.variant||'', s.qty, s.revenue, s.grossProfit, s.paymentMethod||'Not recorded', s.customer||'', s.staff||''].map(csvEscape).join(','));
+  });
+  var blob = new Blob([csvRows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var monthName = now.toLocaleString('default',{month:'long', year:'numeric'});
+  a.href = url;
+  a.download = ((DATA.settings&&DATA.settings.business_name)||'BabyBase') + ' Sales - ' + monthName + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
 }
 
 // ---------- INVENTORY: Products ----------
@@ -556,7 +744,7 @@ function renderSell(){
   html += '<div class="form-row"><div><label>Quantity</label><input id="sellQty" type="number" min="1" value="1"></div>';
   html += '<div><label>Discount %</label><input id="sellDiscount" type="number" min="0" max="100" value="0"></div></div>';
   html += '<label>Customer (optional)</label><input id="sellCustomer" placeholder="Customer name">';
-  html += '<div class="form-row"><div><label>Payment method</label><select id="sellPayment"><option>Cash</option><option>MoMo</option><option>Card</option><option>Bank transfer</option></select></div>';
+  html += '<div class="form-row"><div><label>Payment method</label><select id="sellPayment"><option>Cash</option><option>MTN MoMo</option><option>Telecel Cash</option><option>AirtelTigo Money</option><option>Card</option><option>Bank transfer</option></select></div>';
   html += '<div><label>Staff</label><select id="sellStaff">'+staffOpts+'</select></div></div>';
   html += '<label>Notes</label><input id="sellNotes" placeholder="Optional">';
   html += '<button class="btn primary" style="margin-top:18px;width:100%;" onclick="submitSale()">Confirm sale</button>';
@@ -580,9 +768,9 @@ function renderSalesLog(){
   var rows = (DATA.sales && DATA.sales.rows) || [];
   var html = '<div style="margin-bottom:14px;"><button class="btn small" onclick="sweepSales()">Archive sales older than 12 months</button></div>';
   if(rows.length===0) return html + '<div class="empty">No sales recorded yet.</div>';
-  html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Revenue</th><th>Profit</th><th>Customer</th><th>Staff</th></tr></thead><tbody>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Revenue</th><th>Profit</th><th>Payment</th><th>Customer</th><th>Staff</th></tr></thead><tbody>';
   rows.slice(0,150).forEach(function(s){
-    html += '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.product)+(s.variant?' <span style="color:var(--ink-soft);">('+esc(s.variant)+')</span>':'')+'</td><td>'+s.qty+'</td><td>'+money(s.revenue)+'</td><td>'+money(s.grossProfit)+'</td><td>'+esc(s.customer||'N/A')+'</td><td>'+esc(s.staff||'N/A')+'</td></tr>';
+    html += '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.product)+(s.variant?' <span style="color:var(--ink-soft);">('+esc(s.variant)+')</span>':'')+'</td><td>'+s.qty+'</td><td>'+money(s.revenue)+'</td><td>'+money(s.grossProfit)+'</td><td>'+esc(s.paymentMethod||'N/A')+'</td><td>'+esc(s.customer||'N/A')+'</td><td>'+esc(s.staff||'N/A')+'</td></tr>';
   });
   html += '</tbody></table></div>';
   return html;
@@ -655,7 +843,7 @@ function renderReferrals(){
   return html;
 }
 function submitReferral(){
-  var p = { Date:'', 'Client Name': val('refClient'), 'Referred Someone': val('refWho'), 'Times Referred':1, Notes: val('refNotes') };
+  var p = { Date: clientTodayStr(), 'Client Name': val('refClient'), 'Referred Someone': val('refWho'), 'Times Referred':1, Notes: val('refNotes') };
   if(!p['Client Name']){ showToast('Client name is required', true); return; }
   api('addReferral', p, true).then(function(){ loadData(); });
 }
@@ -710,17 +898,17 @@ function renderExpenses(){
   html += '<div class="card" style="margin-bottom:18px;max-width:640px;">';
   html += '<div class="section-title" style="margin-top:0;">Log an expense</div>';
   html += '<div class="form-row"><div><label>Category</label><input id="expCat" placeholder="e.g. Rent, Transport"></div><div><label>Amount</label><input id="expAmt" type="number"></div></div>';
-  html += '<label>Description</label><input id="expDesc">';
+  html += '<div class="form-row"><div><label>Description</label><input id="expDesc"></div><div><label>Payment method</label><select id="expPayment"><option>Cash</option><option>MTN MoMo</option><option>Telecel Cash</option><option>AirtelTigo Money</option><option>Card</option><option>Bank transfer</option></select></div></div>';
   html += '<button class="btn primary small" style="margin-top:14px;" onclick="submitExpense()">Add expense</button>';
   html += '</div>';
   if(exp.length===0){ html += '<div class="empty">No expenses logged yet.</div>'; return html; }
-  html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead><tbody>';
-  exp.slice(0,80).forEach(function(e){ html += '<tr><td>'+esc(e['Date'])+'</td><td>'+esc(e['Category'])+'</td><td>'+esc(e['Description']||'')+'</td><td>'+money(e['Amount'])+'</td></tr>'; });
+  html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Payment</th><th>Amount</th></tr></thead><tbody>';
+  exp.slice(0,80).forEach(function(e){ html += '<tr><td>'+esc(e['Date'])+'</td><td>'+esc(e['Category'])+'</td><td>'+esc(e['Description']||'')+'</td><td>'+esc(e['Payment Method']||'N/A')+'</td><td>'+money(e['Amount'])+'</td></tr>'; });
   html += '</tbody></table></div>';
   return html;
 }
 function submitExpense(){
-  var p = { Category: val('expCat'), Amount: val('expAmt'), Description: val('expDesc'), Date: '' };
+  var p = { Category: val('expCat'), Amount: val('expAmt'), Description: val('expDesc'), 'Payment Method': val('expPayment'), Date: clientTodayStr() };
   if(!p.Category || !p.Amount){ showToast('Category and amount are required', true); return; }
   api('addExpense', p, true).then(function(){ loadData(); });
 }
@@ -740,9 +928,9 @@ function renderDC(kind, label){
   html += '<div class="form-row"><div><label>Due date</label><input id="dc_'+kind+'_due" placeholder="DD/MM/YYYY"></div><div><label>Contact</label><input id="dc_'+kind+'_contact"></div></div>';
   html += '<button class="btn primary small" style="margin-top:14px;" onclick="submitDC(\''+kind+'\')">Add '+label.toLowerCase()+'</button></div>';
   if(rows.length===0){ html += '<div class="empty">No '+label.toLowerCase()+'s on file.</div>'; return html; }
-  html += '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Payment</th><th>Status</th><th></th></tr></thead><tbody>';
   rows.forEach(function(r){
-    html += '<tr><td>'+esc(r.name)+'</td><td>'+money(r.amountOwed)+'</td><td>'+money(r.amountPaid)+'</td><td>'+money(r.balance)+'</td><td>'+esc(r.status)+'</td>';
+    html += '<tr><td>'+esc(r.name)+'</td><td>'+money(r.amountOwed)+'</td><td>'+money(r.amountPaid)+'</td><td>'+money(r.balance)+'</td><td>'+esc(r.paymentMethod||'N/A')+'</td><td>'+esc(r.status)+'</td>';
     html += '<td><button class="btn small" onclick="clearDC(\''+kind+'\','+r.row+','+r.amountOwed+')">Mark cleared</button> <button class="btn small" onclick="archDC(\''+kind+'\','+r.row+')">Archive</button></td></tr>';
   });
   html += '</tbody></table></div>';
@@ -753,7 +941,11 @@ function submitDC(kind){
   if(!p.name || !p.amountOwed){ showToast('Name and amount owed are required', true); return; }
   api(kind==='debtors'?'addDebtor':'addCreditor', p, true).then(function(){ loadData(); });
 }
-function clearDC(kind,row,amount){ api('markCleared',{table:kind,row:row,amountPaid:amount},true).then(loadData); }
+function clearDC(kind,row,amount){
+  var method = prompt('How was this paid? (Cash / MTN MoMo / Telecel Cash / AirtelTigo Money / Card / Bank transfer)\nLeave blank to skip.', 'Cash');
+  if(method === null) return;
+  api('markCleared',{table:kind,row:row,amountPaid:amount,paymentMethod:method},true).then(loadData);
+}
 function archDC(kind,row){ if(!confirm('Archive this entry?')) return; api('archiveDC',{table:kind,row:row},true).then(loadData); }
 function renderArchivedDC(){
   var rows = (DATA.archiveDC && DATA.archiveDC.rows) || [];
