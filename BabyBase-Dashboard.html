@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BabyBase — Command Centre</title>
+<title>BabyBase, Command Centre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -111,6 +111,7 @@
   .pill.low, .pill.due{ background:var(--sun-light); color:#8A6113; }
   .pill.reorder, .pill.overdue{ background:var(--blush-light); color:#9B4A5A; }
   .pill.out, .pill.dormant{ background:var(--danger-light); color:#8A362D; }
+  .pill.oneoff{ background:var(--primary-light); color:var(--primary-dark); }
 
   input,select,textarea{
     font-family:inherit; font-size:14px; padding:9px 11px; border:1px solid var(--border);
@@ -159,10 +160,10 @@
     <div class="hero-copy">
       <span class="eyebrow tilt">BYINFORGH SOLUTIONS</span>
       <h1>BabyBase</h1>
-      <p class="tagline">Smart retail management, made child's play. One command centre for stock, sales, customers and money — built for baby &amp; kids stores, running entirely on your own Google Sheet.</p>
+      <p class="tagline">Smart retail management, made child's play. One command centre for stock, sales, customers and money, built for baby &amp; kids stores, running entirely on your own Google Sheet.</p>
       <div class="feature-chips">
         <span class="feature-chip">Live inventory &amp; variant matrix</span>
-        <span class="feature-chip">Barcode-ready Sell tab</span>
+        <span class="feature-chip">Fast stock-code Sell tab</span>
         <span class="feature-chip">Growth-aware customer care</span>
         <span class="feature-chip">Daily stock alerts</span>
       </div>
@@ -173,7 +174,7 @@
         <button class="btn primary" style="margin-top:14px;width:100%;" onclick="saveWebAppUrl()">Connect my store</button>
       </div>
       <div class="about-block">
-        <strong>Who we are.</strong> BYINFORGH Solutions builds simple, honest back-office tools for small retail businesses. BabyBase is our command centre for baby and kids stores — your inventory, sales, and customer data live in your own Google account, never on our servers. <strong>What it does.</strong> It turns the daily juggle of stock counts, till receipts, and "who owes what" into one calm dashboard your whole team can use.
+        <strong>Who we are.</strong> BYINFORGH Solutions builds simple, honest back-office tools for small retail businesses. BabyBase is our command centre for baby and kids stores. Your inventory, sales, and customer data live in your own Google account, never on our servers. <strong>What it does.</strong> It turns the daily juggle of stock counts, till receipts, and "who owes what" into one calm dashboard your whole team can use.
       </div>
     </div>
     <svg class="hero-illustration" viewBox="0 0 360 380" xmlns="http://www.w3.org/2000/svg">
@@ -214,7 +215,7 @@
     </div>
     <div id="navContainer"></div>
     <div class="sidebar-footer">
-      <div id="lastUpdated">—</div>
+      <div id="lastUpdated">Not connected yet</div>
       <button class="btn small" style="margin-top:8px;width:100%;" onclick="loadData(true)">Refresh</button>
     </div>
   </div>
@@ -292,7 +293,7 @@ function money(n){ return CURRENCY + ' ' + (n||0).toLocaleString(undefined,{mini
 function esc(s){ return (s===undefined||s===null?'':String(s)).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
 // ============================================================
-// ICONS — small consistent line-icon set, one per section
+// ICONS, small consistent line-icon set, one per section
 // ============================================================
 var ICONS = {
   overview: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
@@ -308,7 +309,7 @@ var ICON_BG = { overview:'var(--primary-light)', inventory:'var(--sage-light)', 
 var ICON_FG = { overview:'var(--primary-dark)', inventory:'#3E6B47', sell:'#8A6113', sales:'#9B4A5A', clients:'var(--primary-dark)', money:'#8A6113', followups:'#3E6B47', team:'#9B4A5A' };
 
 // ============================================================
-// NAV STRUCTURE — every sheet tab is represented somewhere here
+// NAV STRUCTURE, every sheet tab is represented somewhere here
 // ============================================================
 var NAV = [
   { id:'overview', label:'Overview' },
@@ -329,7 +330,7 @@ var NAV = [
 ];
 var TAB_MEANINGS = {
   overview:['Overview',"Today's snapshot"], inventory:['Inventory','Products, purchases, and how you organise them'],
-  sell:['Sell','Record a sale by stock code or barcode'], sales:['Sales','Everything ever recorded — and what got tidied away'],
+  sell:['Sell','Record a sale by stock code'], sales:['Sales','Everything ever recorded, plus what got tidied away'],
   clients:['Clients','Customer directory, referrals and every conversation'], money:['Money','Expenses, who owes you, and who you owe'],
   followups:['Follow-ups','What needs a human today'], team:['Team & Settings','Shop info, staff, tax and the paper trail']
 };
@@ -405,7 +406,7 @@ function kpiCard(label, value, sub){
   return '<div class="card"><div class="kpi-label">'+esc(label)+'</div><div class="kpi-value">'+value+'</div><div class="kpi-sub">'+esc(sub)+'</div></div>';
 }
 function statusPill(s){
-  var cls = s==='OK'?'ok':s==='LOW STOCK'?'low':s==='REORDER'?'reorder':'out';
+  var cls = s==='OK'?'ok':s==='LOW STOCK'?'low':s==='REORDER'?'reorder':s==='LAST FEW'?'oneoff':s==='SOLD OUT'?'oneoff':'out';
   return '<span class="pill '+cls+'">'+esc(s)+'</span>';
 }
 function statusPillClient(status,label){ return '<span class="pill '+status+'">'+esc(label)+'</span>'; }
@@ -420,6 +421,8 @@ function renderOverview(){
   html += kpiCard('Today', money((pb.today||{}).revenue), (pb.today||{}).transactions + ' sale(s)');
   html += kpiCard('This week', money((pb.week||{}).revenue), (pb.week||{}).transactions + ' sale(s)');
   html += kpiCard('This month', money((pb.month||{}).revenue), 'Pace: ' + pace + '% of target');
+  html += kpiCard('This quarter', money((pb.quarter||{}).revenue), (pb.quarter||{}).transactions + ' sale(s)');
+  html += kpiCard('This year', money((pb.year||{}).revenue), (pb.year||{}).transactions + ' sale(s)');
   html += kpiCard('All time', money((pb.allTime||{}).revenue), (pb.allTime||{}).transactions + ' sale(s) total');
   html += '</div>';
 
@@ -440,6 +443,9 @@ function renderOverview(){
     if(alerts.lowStockCount) html += '<div style="margin-top:6px;"><span class="pill low">Low stock</span> '+alerts.lowStockCount+' item(s)</div>';
     html += '</div>';
   }
+  if((alerts.oneOffRunningOut||[]).length){
+    html += '<div class="kpi-sub" style="margin-top:10px;">'+alerts.oneOffRunningOut.length+' one-off item(s) selling through, marked not-restocking so they will not trigger a reorder alert.</div>';
+  }
   html += '</div>';
 
   var fu = (DATA.followUps && DATA.followUps.items) || [];
@@ -452,7 +458,7 @@ function renderOverview(){
   }
   html += '</div></div>';
 
-  html += '<div class="about-block" style="margin-top:26px;"><strong>'+esc((DATA.settings||{}).business_name||'Your store')+'</strong> is running on BabyBase, powered by BYINFORGH Solutions — your data lives only in your own Google Sheet.</div>';
+  html += '<div class="about-block" style="margin-top:26px;"><strong>'+esc((DATA.settings||{}).business_name||'Your store')+'</strong> is running on BabyBase, powered by BYINFORGH Solutions, your data lives only in your own Google Sheet.</div>';
   return html;
 }
 
@@ -466,18 +472,20 @@ function renderProducts(){
   html += '<div class="form-row"><div><label>Stock code</label><input id="pStockCode"></div><div><label>Product name</label><input id="pName"></div></div>';
   html += '<div class="form-row"><div><label>Category</label><select id="pCategory">'+cats+'</select></div><div><label>Unit</label><select id="pUnit">'+units+'</select></div></div>';
   html += '<div class="form-row"><div><label>Variant / size</label><input id="pVariant" placeholder="e.g. 3-6 Months"></div><div><label>Parent product (groups variants)</label><input id="pParent" placeholder="Leave blank to use product name"></div></div>';
-  html += '<div class="form-row"><div><label>Barcode (optional)</label><input id="pBarcode"></div><div><label>Shelf / location</label><input id="pShelf"></div></div>';
+  html += '<label>Shelf / location</label><input id="pShelf">';
   html += '<div class="form-row"><div><label>Unit cost</label><input id="pCost" type="number"></div><div><label>Retail price</label><input id="pRetail" type="number"></div></div>';
   html += '<div class="form-row"><div><label>Opening stock</label><input id="pOpening" type="number" value="0"></div><div><label>Reorder level</label><input id="pReorder" type="number" value="0"></div></div>';
+  html += '<label>Will you restock this when it runs out?</label><select id="pRestock"><option value="Yes">Yes, restock as normal</option><option value="No">No, this is a one-off, do not warn me to reorder</option></select>';
   html += '<button class="btn primary small" style="margin-top:16px;" onclick="submitProduct()">Add product</button>';
   html += '</div>';
 
   if(groups.length===0) return html + '<div class="empty">No products yet. Add one above, or run the starter demo catalog from the BabyBase menu in the Sheet.</div>';
-  html += '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>Variants</th><th>Total stock</th><th>Stock value</th><th>Status</th></tr></thead><tbody>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Category</th><th>Variants</th><th>Total stock</th><th>Stock value</th><th>Status</th><th></th></tr></thead><tbody>';
   groups.forEach(function(g){
-    html += '<tr><td><strong>'+esc(g.parentProduct)+'</strong></td><td>'+esc(g.category||'')+'</td><td>'+g.variants.length+'</td><td>'+g.totalStock+'</td><td>'+money(g.totalStockValue)+'</td><td>'+statusPill(g.worstStatus)+'</td></tr>';
+    html += '<tr><td><strong>'+esc(g.parentProduct)+'</strong></td><td>'+esc(g.category||'')+'</td><td>'+g.variants.length+'</td><td>'+g.totalStock+'</td><td>'+money(g.totalStockValue)+'</td><td>'+statusPill(g.worstStatus)+'</td><td></td></tr>';
     g.variants.forEach(function(v){
-      html += '<tr style="background:var(--bg);"><td style="padding-left:26px;color:var(--ink-soft);">'+esc(v.variant||v.stockCode)+' <span style="color:var(--ink-soft);font-size:11px;">('+esc(v.stockCode)+')</span></td><td></td><td></td><td>'+v.currentStock+'</td><td>'+money(v.stockValueRetail)+'</td><td>'+statusPill(v.status)+'</td></tr>';
+      html += '<tr style="background:var(--bg);"><td style="padding-left:26px;color:var(--ink-soft);">'+esc(v.variant||v.stockCode)+' <span style="color:var(--ink-soft);font-size:11px;">('+esc(v.stockCode)+')</span>'+(v.restock?'':' <span class="pill oneoff">One-off</span>')+'</td><td></td><td></td><td>'+v.currentStock+'</td><td>'+money(v.stockValueRetail)+'</td><td>'+statusPill(v.status)+'</td>';
+      html += '<td><button class="btn small" onclick="toggleRestock('+v.row+','+(v.restock?'true':'false')+')">'+(v.restock?'Mark as one-off':'Resume restocking')+'</button> <button class="btn small" onclick="updateCost(\''+esc(v.stockCode).replace(/'/g,"\\'")+'\','+v.unitCost+')">Update cost</button></td></tr>';
     });
   });
   html += '</tbody></table></div>';
@@ -485,10 +493,19 @@ function renderProducts(){
 }
 function submitProduct(){
   var p = { stockCode: val('pStockCode'), name: val('pName'), category: val('pCategory'), unit: val('pUnit'),
-    variant: val('pVariant'), parentProduct: val('pParent'), barcode: val('pBarcode'), shelf: val('pShelf'),
-    unitCost: val('pCost'), retailPrice: val('pRetail'), openingStock: val('pOpening'), reorderLevel: val('pReorder') };
+    variant: val('pVariant'), parentProduct: val('pParent'), shelf: val('pShelf'),
+    unitCost: val('pCost'), retailPrice: val('pRetail'), openingStock: val('pOpening'), reorderLevel: val('pReorder'), restock: val('pRestock') };
   if(!p.stockCode || !p.name){ showToast('Stock code and product name are required', true); return; }
   api('addCatalogProduct', p, true).then(function(){ loadData(); });
+}
+function toggleRestock(row, currentlyRestocks){
+  api('updateField', { sheet:'catalog', row: row, field:'Restock?', value: currentlyRestocks ? 'No' : 'Yes' }, true).then(function(){ loadData(); });
+}
+function updateCost(stockCode, currentCost){
+  var newCost = prompt('New unit cost for ' + stockCode + ':', currentCost);
+  if(newCost === null || newCost === '') return;
+  if(isNaN(parseFloat(newCost))){ showToast('Enter a valid number', true); return; }
+  api('updateCatalogCost', { stockCode: stockCode, newUnitCost: newCost }, true).then(function(){ loadData(); });
 }
 
 // ---------- INVENTORY: Purchases ----------
@@ -503,7 +520,7 @@ function renderPurchases(){
 
   if(rows.length===0){ html += '<div class="empty">No purchases logged yet.</div>'; return html; }
   html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit cost</th><th>Total</th><th>Supplier</th></tr></thead><tbody>';
-  rows.slice(0,80).forEach(function(p){ html += '<tr><td>'+esc(p.date)+'</td><td>'+esc(p.product)+'</td><td>'+p.qty+'</td><td>'+money(p.unitCost)+'</td><td>'+money(p.totalCost)+'</td><td>'+esc(p.supplier||'—')+'</td></tr>'; });
+  rows.slice(0,80).forEach(function(p){ html += '<tr><td>'+esc(p.date)+'</td><td>'+esc(p.product)+'</td><td>'+p.qty+'</td><td>'+money(p.unitCost)+'</td><td>'+money(p.totalCost)+'</td><td>'+esc(p.supplier||'N/A')+'</td></tr>'; });
   html += '</tbody></table></div>';
   return html;
 }
@@ -535,7 +552,7 @@ function addUnit(){ var v=val('newUnit'); if(!v){showToast('Enter a unit name',t
 function renderSell(){
   var staffOpts = (DATA.staff||[]).map(function(s){ return '<option>'+esc(s)+'</option>'; }).join('');
   var html = '<div class="card" style="max-width:520px;">';
-  html += '<label>Stock code or barcode</label><input id="sellCode" placeholder="Scan or type…">';
+  html += '<label>Stock code</label><input id="sellCode" placeholder="Type the stock code…">';
   html += '<div class="form-row"><div><label>Quantity</label><input id="sellQty" type="number" min="1" value="1"></div>';
   html += '<div><label>Discount %</label><input id="sellDiscount" type="number" min="0" max="100" value="0"></div></div>';
   html += '<label>Customer (optional)</label><input id="sellCustomer" placeholder="Customer name">';
@@ -549,9 +566,9 @@ function renderSell(){
 function submitSale(){
   var p = { stockCode: val('sellCode'), qty: val('sellQty'), discountPct: val('sellDiscount'), customer: val('sellCustomer'),
     paymentMethod: val('sellPayment'), staff: val('sellStaff'), notes: val('sellNotes') };
-  if(!p.stockCode){ showToast('Enter a stock code or barcode', true); return; }
+  if(!p.stockCode){ showToast('Enter a stock code', true); return; }
   api('addSale', p, true).then(function(res){
-    showToast('Sale logged: '+res.product+' — '+money(res.revenue));
+    showToast('Sale logged: '+res.product+', '+money(res.revenue));
     ['sellCode','sellCustomer','sellNotes'].forEach(function(id){ document.getElementById(id).value=''; });
     document.getElementById('sellQty').value='1';
     loadData();
@@ -565,7 +582,7 @@ function renderSalesLog(){
   if(rows.length===0) return html + '<div class="empty">No sales recorded yet.</div>';
   html += '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Revenue</th><th>Profit</th><th>Customer</th><th>Staff</th></tr></thead><tbody>';
   rows.slice(0,150).forEach(function(s){
-    html += '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.product)+(s.variant?' <span style="color:var(--ink-soft);">('+esc(s.variant)+')</span>':'')+'</td><td>'+s.qty+'</td><td>'+money(s.revenue)+'</td><td>'+money(s.grossProfit)+'</td><td>'+esc(s.customer||'—')+'</td><td>'+esc(s.staff||'—')+'</td></tr>';
+    html += '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.product)+(s.variant?' <span style="color:var(--ink-soft);">('+esc(s.variant)+')</span>':'')+'</td><td>'+s.qty+'</td><td>'+money(s.revenue)+'</td><td>'+money(s.grossProfit)+'</td><td>'+esc(s.customer||'N/A')+'</td><td>'+esc(s.staff||'N/A')+'</td></tr>';
   });
   html += '</tbody></table></div>';
   return html;
@@ -597,8 +614,8 @@ function renderClients(){
   html += '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Number</th><th>Child</th><th>Status</th><th>Total spent</th><th>Tier</th><th></th></tr></thead><tbody>';
   rows.forEach(function(c){
     var h = health[c['Name']];
-    html += '<tr><td><strong>'+esc(c['Name'])+'</strong></td><td>'+esc(c['Number']||'—')+'</td><td>'+(c['Child Name']?esc(c['Child Name'])+' <span class="badge-child">'+esc(c['Child DOB']||'')+'</span>':'—')+'</td>';
-    html += '<td>'+(h?statusPillClient(h.status,h.label):'—')+'</td><td>'+(h?money(h.totalRevenue):'—')+'</td><td>'+(h?esc(h.tier):'—')+'</td>';
+    html += '<tr><td><strong>'+esc(c['Name'])+'</strong></td><td>'+esc(c['Number']||'N/A')+'</td><td>'+(c['Child Name']?esc(c['Child Name'])+' <span class="badge-child">'+esc(c['Child DOB']||'')+'</span>':'N/A')+'</td>';
+    html += '<td>'+(h?statusPillClient(h.status,h.label):'N/A')+'</td><td>'+(h?money(h.totalRevenue):'N/A')+'</td><td>'+(h?esc(h.tier):'N/A')+'</td>';
     html += '<td><button class="btn small" onclick="archiveClient(\''+esc(c['Name']).replace(/'/g,"\\'")+'\')">Archive</button></td></tr>';
   });
   html += '</tbody></table></div>';
@@ -612,9 +629,16 @@ function submitClient(){
 }
 function archiveClient(name){ if(!confirm('Archive '+name+'?')) return; api('archiveClient',{name:name},true).then(loadData); }
 function renderArchivedClients(){
-  var rows = (DATA.clients && DATA.clients.rows) ? [] : [];
-  return '<div class="empty">Archived clients move off the live Directory tab — open the ARCHIVED_CLIENTS sheet tab directly in Google Sheets to browse them.</div>';
+  var rows = (DATA.archivedClients && DATA.archivedClients.rows) || [];
+  if(rows.length===0) return '<div class="empty">No archived clients.</div>';
+  var html = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Number</th><th>Location</th><th>Notes</th><th></th></tr></thead><tbody>';
+  rows.forEach(function(c){
+    html += '<tr><td>'+esc(c['Name'])+'</td><td>'+esc(c['Number']||'N/A')+'</td><td>'+esc(c['Location']||'N/A')+'</td><td>'+esc(c['Notes']||'')+'</td><td><button class="btn small" onclick="restoreClient('+c.__row+')">Restore</button></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
 }
+function restoreClient(row){ api('restoreClient',{row:row},true).then(loadData); }
 
 // ---------- CLIENTS: referrals ----------
 function renderReferrals(){
@@ -747,7 +771,7 @@ function renderFollowUps(){
   if(items.length===0) return '<div class="empty">Nothing needs attention right now.</div>';
   var html = '<div class="table-wrap"><table><thead><tr><th>Type</th><th>Who</th><th>Detail</th><th>Timing</th></tr></thead><tbody>';
   items.forEach(function(f){
-    var timing = f.daysUntil===null ? '—' : f.daysUntil<0 ? Math.abs(f.daysUntil)+'d overdue' : f.daysUntil===0 ? 'Today' : 'in '+f.daysUntil+'d';
+    var timing = f.daysUntil===null ? 'N/A' : f.daysUntil<0 ? Math.abs(f.daysUntil)+'d overdue' : f.daysUntil===0 ? 'Today' : 'in '+f.daysUntil+'d';
     html += '<tr><td><strong>'+esc(f.kind)+'</strong></td><td>'+esc(f.name||'')+'</td><td>'+esc(f.detail)+'</td><td>'+timing+'</td></tr>';
   });
   html += '</tbody></table></div>';
@@ -806,7 +830,7 @@ function saveAllSettings(){
   api('saveSettings', p, true).then(function(){ loadData(); });
 }
 function disconnect(){
-  if(!confirm('This clears the saved Web App URL on this device only — your Sheet and data are untouched. Continue?')) return;
+  if(!confirm('This clears the saved Web App URL on this device only, your Sheet and data are untouched. Continue?')) return;
   localStorage.removeItem('babybase_url'); location.reload();
 }
 
@@ -828,8 +852,9 @@ function renderTaxCodes(){
   html += '<label>Description</label><input id="txDesc">';
   html += '<button class="btn primary small" style="margin-top:14px;" onclick="submitTaxCode()">Add tax code</button></div>';
   if(rows.length===0){ html += '<div class="empty">No tax codes yet.</div>'; return html; }
-  html += '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Description</th><th>Rate</th><th>Active</th></tr></thead><tbody>';
-  rows.forEach(function(t){ html += '<tr><td>'+esc(t.code)+'</td><td>'+esc(t.description||'')+'</td><td>'+t.rate+'%</td><td>'+(t.active?'Yes':'No')+'</td></tr>'; });
+  html += '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Description</th><th>Rate</th><th>Active</th><th></th></tr></thead><tbody>';
+  rows.forEach(function(t){ html += '<tr><td>'+esc(t.code)+'</td><td>'+esc(t.description||'')+'</td><td>'+t.rate+'%</td><td>'+(t.active?'Yes':'No')+'</td>';
+    html += '<td><button class="btn small" onclick="editTaxRate(\''+esc(t.code).replace(/'/g,"\\'")+'\','+t.rate+')">Edit rate</button> <button class="btn small" onclick="toggleTaxActive(\''+esc(t.code).replace(/'/g,"\\'")+'\','+(t.active?'true':'false')+')">'+(t.active?'Deactivate':'Activate')+'</button></td></tr>'; });
   html += '</tbody></table></div>';
   return html;
 }
@@ -838,13 +863,22 @@ function submitTaxCode(){
   if(!p.code){ showToast('Tax code is required', true); return; }
   api('addTaxCode', p, true).then(function(){ loadData(); });
 }
+function editTaxRate(code, currentRate){
+  var newRate = prompt('New rate % for ' + code + ':', currentRate);
+  if(newRate === null || newRate === '') return;
+  if(isNaN(parseFloat(newRate))){ showToast('Enter a valid number', true); return; }
+  api('updateTaxCode', { code: code, rate: newRate }, true).then(function(){ loadData(); });
+}
+function toggleTaxActive(code, currentlyActive){
+  api('updateTaxCode', { code: code, active: currentlyActive ? 'false' : 'true' }, true).then(function(){ loadData(); });
+}
 
 // ---------- TEAM & SETTINGS: audit log ----------
 function renderAuditLog(){
   var rows = DATA.auditLog || [];
-  if(rows.length===0) return '<div class="empty">No activity logged yet — every sale, edit and cleared debt made through this dashboard will show up here.</div>';
+  if(rows.length===0) return '<div class="empty">No activity logged yet, every sale, edit and cleared debt made through this dashboard will show up here.</div>';
   var html = '<div class="table-wrap"><table><thead><tr><th>Timestamp</th><th>Action</th><th>Staff</th><th>Details</th></tr></thead><tbody>';
-  rows.forEach(function(a){ html += '<tr><td>'+esc(a['Timestamp'])+'</td><td>'+esc(a['Action'])+'</td><td>'+esc(a['Staff']||'—')+'</td><td style="color:var(--ink-soft);font-size:12px;">'+esc(a['Details']||'')+'</td></tr>'; });
+  rows.forEach(function(a){ html += '<tr><td>'+esc(a['Timestamp'])+'</td><td>'+esc(a['Action'])+'</td><td>'+esc(a['Staff']||'N/A')+'</td><td style="color:var(--ink-soft);font-size:12px;">'+esc(a['Details']||'')+'</td></tr>'; });
   html += '</tbody></table></div>';
   return html;
 }
