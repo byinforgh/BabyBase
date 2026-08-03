@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>BabyBase, Command Centre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -27,7 +27,7 @@
     --radius:14px;
   }
   *{box-sizing:border-box;}
-  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:15px; line-height:1.5; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:15px; line-height:1.5; touch-action:manipulation; -webkit-text-size-adjust:100%; }
   h1,h2,h3{ font-family:'Fraunces',serif; font-weight:600; margin:0; }
   svg{ display:block; }
   .app{ display:flex; min-height:100vh; }
@@ -188,6 +188,70 @@
   .payment-bar-track{ flex:1; height:8px; background:var(--border); border-radius:99px; overflow:hidden; }
   .payment-bar-fill{ height:100%; background:var(--primary); border-radius:99px; }
   .payment-bar-value{ width:88px; flex-shrink:0; text-align:right; font-weight:600; }
+
+  /* ---- connection status pill ---- */
+  .status-pill{ display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.02em; padding:5px 0 9px; }
+  .status-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .status-pill.live .status-dot{ background:#7FD98A; box-shadow:0 0 0 3px rgba(127,217,138,.22); }
+  .status-pill.live{ color:#9FE0A8; }
+  .status-pill.offline .status-dot{ background:#E8898A; box-shadow:0 0 0 3px rgba(232,137,138,.22); }
+  .status-pill.offline{ color:#F0A9AA; }
+
+  /* ---- BYINFORGH brand footer (bottom of every page), clickable -> contact modal ---- */
+  .byi-footer{
+    margin-top:28px; padding:16px 22px; border-top:1px solid var(--border);
+    text-align:center; font-size:12px; color:var(--ink-soft);
+  }
+  .byi-footer-link{
+    display:inline-flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer;
+    font-family:inherit; font-size:12px; color:var(--ink-soft); padding:4px 8px; border-radius:8px;
+    transition:color .15s ease, background .15s ease;
+  }
+  .byi-footer-link:hover{ color:var(--primary-dark); background:var(--primary-light); }
+  .byi-footer-link strong{ color:inherit; font-weight:700; }
+  .byi-footer-link .byi-tm{ font-size:9px; vertical-align:super; }
+  .byi-footer-link svg{ opacity:.55; flex-shrink:0; }
+  .sidebar .byi-footer{
+    margin-top:12px; padding:12px 4px 0; border-top:1px solid rgba(255,255,255,.14); text-align:left;
+  }
+  .sidebar .byi-footer-link{ color:#9FBFD3; padding:4px 2px; }
+  .sidebar .byi-footer-link:hover{ color:#EAF2F7; background:rgba(255,255,255,.08); }
+  .setup-screen .byi-footer{ max-width:520px; margin:26px auto 0; }
+
+  /* ---- contact modal (opened from the brand footer) ---- */
+  .contact-modal{ max-width:400px; }
+  .contact-modal h3{ margin-bottom:4px; }
+  .contact-modal .contact-tag{ font-size:12px; color:var(--ink-soft); margin-bottom:18px; }
+  .contact-row{
+    display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);
+  }
+  .contact-row:last-of-type{ border-bottom:none; }
+  .contact-row .contact-icon{
+    width:34px; height:34px; border-radius:9px; background:var(--primary-light); color:var(--primary-dark);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .contact-row a{ color:var(--ink); text-decoration:none; font-weight:600; font-size:13.5px; }
+  .contact-row a:hover{ color:var(--primary-dark); text-decoration:underline; }
+  .contact-row .contact-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); font-weight:700; }
+  .contact-socials{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .contact-socials a{
+    font-size:12px; font-weight:600; color:var(--primary-dark); background:var(--primary-light);
+    padding:6px 12px; border-radius:99px; text-decoration:none;
+  }
+  .contact-socials a:hover{ background:var(--primary); color:#fff; }
+
+  /* ---- modal (replaces window.prompt for inline edits) ---- */
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(58,52,46,.42); z-index:60;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal-box{
+    background:var(--card); border-radius:var(--radius); padding:22px; width:100%; max-width:360px;
+    box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal-box h3{ margin-bottom:14px; font-size:17px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
 </style>
 </head>
 <body>
@@ -195,7 +259,7 @@
 <div id="setup" class="setup-screen" style="display:none;">
   <div class="setup-wrap">
     <div class="hero-copy">
-      <span class="eyebrow tilt">BYINFORGH SOLUTIONS</span>
+      <span class="eyebrow tilt">BUSINESS SOLUTIONS BY BYINFORGH</span>
       <h1>BabyBase</h1>
       <p class="tagline">Smart retail management, made child's play. One command centre for stock, sales, customers and money, built for baby &amp; kids stores, running entirely on your own Google Sheet.</p>
       <div class="feature-chips">
@@ -213,6 +277,7 @@
       <div class="about-block">
         <strong>Who we are.</strong> BYINFORGH Solutions builds simple, honest back-office tools for small retail businesses. BabyBase is our command centre for baby and kids stores. Your inventory, sales, and customer data live in your own Google account, never on our servers. <strong>What it does.</strong> It turns the daily juggle of stock counts, till receipts, and "who owes what" into one calm dashboard your whole team can use.
       </div>
+      <div id="byiFooterSetup"></div>
     </div>
     <svg class="hero-illustration" viewBox="0 0 360 380" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="180" cy="330" rx="140" ry="18" fill="#37576E" opacity=".06"/>
@@ -247,14 +312,16 @@
       <svg width="34" height="34" viewBox="0 0 34 34" style="flex-shrink:0;margin-top:2px;"><circle cx="17" cy="17" r="16" fill="#F2C265"/><path d="M12 10 a5 5 0 0 1 10 0" fill="none" stroke="#37576E" stroke-width="3" stroke-linecap="round"/><circle cx="13.5" cy="17" r="1.8" fill="#37576E"/><circle cx="20.5" cy="17" r="1.8" fill="#37576E"/><path d="M13 21 q4 3 8 0" fill="none" stroke="#37576E" stroke-width="2" stroke-linecap="round"/></svg>
       <div>
         <h1 id="brandName">BabyBase</h1>
-        <span>Powered by BYINFORGH Solutions</span>
+        <span>Business Solutions powered by BYINFORGH™</span><br><span style="opacity:.6;font-size:10px;">Dashboard v<span id="dashVersion"></span></span>
       </div>
     </div>
     <div id="navContainer"></div>
     <div class="sidebar-footer">
+      <div id="statusPill" class="status-pill offline"><span class="status-dot"></span><span id="statusPillText">Offline</span></div>
       <div id="lastUpdated">Not connected yet</div>
       <button class="btn small" style="margin-top:8px;width:100%;" onclick="loadData(true)">Refresh</button>
       <div id="pendingSync" class="pending-badge"></div>
+      <div id="byiFooterSidebar"></div>
     </div>
   </div>
 
@@ -280,11 +347,78 @@
 
 <div id="toast" class="toast"></div>
 <div id="globalLoading" class="loading-overlay"><div class="spinner"></div><div class="loading-label">Loading your store…</div></div>
+<div id="modalBackdrop" class="modal-backdrop" onclick="if(event.target===this)closeModal();"><div class="modal-box" id="modalBox"></div></div>
 
 <script>
 var WEB_APP_URL = localStorage.getItem('babybase_url') || '';
 var DATA = null;
 var CURRENCY = 'GHS';
+var DASHBOARD_VERSION = '1.2';
+
+// ============================================================
+// BYINFORGH brand footer, injected on every page (sidebar + connect screen)
+// A single clickable line -> opens the full contact card in a modal.
+// ============================================================
+var BYI_FOOTER_HTML =
+  '<div class="byi-footer">'+
+    '<button type="button" class="byi-footer-link" onclick="openContactModal()">'+
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'+
+      '<span>Business Solutions powered by <strong>BYINFORGH</strong><span class="byi-tm">™</span></span>'+
+    '</button>'+
+  '</div>';
+function injectFooters(){
+  var a = document.getElementById('byiFooterSidebar'); if(a) a.innerHTML = BYI_FOOTER_HTML;
+  var b = document.getElementById('byiFooterSetup'); if(b) b.innerHTML = BYI_FOOTER_HTML;
+}
+
+// ============================================================
+// Contact card, opened by clicking the brand footer anywhere in the app
+// ============================================================
+function openContactModal(){
+  var icon = function(path){ return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+path+'</svg>'; };
+  var mail = icon('<path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"/><path d="M2 6h20v12H2z"/>');
+  var phone = icon('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/>');
+  var chat = icon('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>');
+  var html =
+    '<div class="contact-modal">'+
+    '<h3>Business Solutions powered by BYINFORGH<span class="byi-tm">™</span></h3>'+
+    '<div class="contact-tag">Setup and ongoing maintenance for your BabyBase dashboard, we\'re one message away.</div>'+
+    '<div class="contact-row"><div class="contact-icon">'+mail+'</div><div><div class="contact-label">Email</div><a href="mailto:solutions@byinforgh.com">solutions@byinforgh.com</a></div></div>'+
+    '<div class="contact-row"><div class="contact-icon">'+phone+'</div><div><div class="contact-label">Phone</div><a href="tel:0509960980">0509960980</a></div></div>'+
+    '<div class="contact-row"><div class="contact-icon">'+chat+'</div><div><div class="contact-label">WhatsApp</div><a href="https://wa.me/message/WIMY7PLL26LWA1" target="_blank" rel="noopener">Message us</a></div></div>'+
+    '<div class="contact-socials">'+
+      '<a href="https://www.facebook.com/byinforgh" target="_blank" rel="noopener">Facebook</a>'+
+      '<a href="https://www.instagram.com/byinforgh" target="_blank" rel="noopener">Instagram</a>'+
+      '<a href="https://www.tiktok.com/@byinforgh" target="_blank" rel="noopener">TikTok</a>'+
+      '<a href="https://www.youtube.com/@ByInForGH" target="_blank" rel="noopener">YouTube</a>'+
+      '<a href="https://selar.com/m/byinforgh" target="_blank" rel="noopener">Playbooks</a>'+
+    '</div>'+
+    '<div class="modal-actions"><button class="btn primary" onclick="closeModal()" style="width:100%;">Close</button></div>'+
+    '</div>';
+  openModal(html);
+}
+
+// ============================================================
+// modal helper, replaces window.prompt() with an inline form
+// ============================================================
+function openModal(html){
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalBackdrop').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBackdrop').classList.remove('show'); }
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
+
+// ============================================================
+// live/offline status pill, reflects real connectivity throughout the app
+// ============================================================
+function setStatusPill(live){
+  var el = document.getElementById('statusPill'); if(!el) return;
+  var t = document.getElementById('statusPillText');
+  if(live){ el.className='status-pill live'; t.textContent='Live'; }
+  else { el.className='status-pill offline'; t.textContent='Offline'; }
+}
+window.addEventListener('online', function(){ /* real state confirmed on next successful call */ });
+window.addEventListener('offline', function(){ setStatusPill(false); });
 
 function saveWebAppUrl(){
   var v = document.getElementById('setupUrlInput').value.trim();
@@ -368,11 +502,13 @@ function rawApi(action, params){
 function api(action, params, isWrite){
   return rawApi(action, params).then(function(res){
     hideConnError();
+    setStatusPill(true);
     if(res.error){ showToast(res.error, true); throw {serverError:true, message:res.error}; }
     if(isWrite) showToast('Saved');
     return res;
   }).catch(function(err){
     if(err && err.networkError){
+      setStatusPill(false);
       if(isWrite){
         queueWrite(action, params);
         showToast("Offline — saved on this device, will sync automatically once you're back online", true);
@@ -690,9 +826,17 @@ function toggleRestock(row, currentlyRestocks){
   api('updateField', { sheet:'catalog', row: row, field:'Restock?', value: currentlyRestocks ? 'No' : 'Yes' }, true).then(function(){ loadData(); });
 }
 function updateCost(stockCode, currentCost){
-  var newCost = prompt('New unit cost for ' + stockCode + ':', currentCost);
-  if(newCost === null || newCost === '') return;
-  if(isNaN(parseFloat(newCost))){ showToast('Enter a valid number', true); return; }
+  var html = '<h3>Update unit cost</h3>'+
+    '<label>Stock code</label><input value="'+esc(stockCode)+'" disabled style="background:var(--bg);">'+
+    '<label style="margin-top:10px;">New unit cost</label><input id="modalNewCost" type="number" step="0.01" value="'+esc(currentCost)+'" autofocus>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
+    '<button class="btn primary" onclick="submitUpdateCost(\''+esc(stockCode).replace(/'/g,"\\'")+'\')">Save</button></div>';
+  openModal(html);
+}
+function submitUpdateCost(stockCode){
+  var newCost = val('modalNewCost');
+  if(newCost === '' || isNaN(parseFloat(newCost))){ showToast('Enter a valid number', true); return; }
+  closeModal();
   api('updateCatalogCost', { stockCode: stockCode, newUnitCost: newCost }, true).then(function(){ loadData(); });
 }
 
@@ -942,18 +1086,30 @@ function submitDC(kind){
   api(kind==='debtors'?'addDebtor':'addCreditor', p, true).then(function(){ loadData(); });
 }
 function clearDC(kind,row,amount){
-  var method = prompt('How was this paid? (Cash / MTN MoMo / Telecel Cash / AirtelTigo Money / Card / Bank transfer)\nLeave blank to skip.', 'Cash');
-  if(method === null) return;
+  var html = '<h3>Mark as cleared</h3>'+
+    '<label>How was this paid?</label><select id="modalPayMethod"><option>Cash</option><option>MTN MoMo</option><option>Telecel Cash</option><option>AirtelTigo Money</option><option>Card</option><option>Bank transfer</option></select>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
+    '<button class="btn primary" onclick="submitClearDC(\''+kind+'\','+row+','+amount+')">Confirm</button></div>';
+  openModal(html);
+}
+function submitClearDC(kind,row,amount){
+  var method = val('modalPayMethod');
+  closeModal();
   api('markCleared',{table:kind,row:row,amountPaid:amount,paymentMethod:method},true).then(loadData);
 }
 function archDC(kind,row){ if(!confirm('Archive this entry?')) return; api('archiveDC',{table:kind,row:row},true).then(loadData); }
 function renderArchivedDC(){
   var rows = (DATA.archiveDC && DATA.archiveDC.rows) || [];
-  if(rows.length===0) return '<div class="empty">Nothing archived yet.</div>';
-  var html = '<div class="table-wrap"><table><thead><tr><th>Archived</th><th>Type</th><th>Name</th><th>Owed</th><th>Paid</th><th>Reason</th><th></th></tr></thead><tbody>';
+  var html = '<div style="margin-bottom:14px;"><button class="btn small" onclick="bulkSweepDC()">Bulk-clear all cleared debts</button></div>';
+  if(rows.length===0) return html + '<div class="empty">Nothing archived yet.</div>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Archived</th><th>Type</th><th>Name</th><th>Owed</th><th>Paid</th><th>Reason</th><th></th></tr></thead><tbody>';
   rows.forEach(function(r){ html += '<tr><td>'+esc(r.archivedDate)+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.name)+'</td><td>'+money(r.amountOwed)+'</td><td>'+money(r.amountPaid)+'</td><td>'+esc(r.reason)+'</td><td><button class="btn small" onclick="restoreDCRow('+r.row+')">Restore</button></td></tr>'; });
   html += '</tbody></table></div>';
   return html;
+}
+function bulkSweepDC(){
+  if(!confirm('Archive every debtor/creditor row already marked cleared, in one go?')) return;
+  api('sweepArchiveDC',{},true).then(function(r){ showToast((r.archived||0)+' cleared entr'+((r.archived===1)?'y':'ies')+' archived'); loadData(); });
 }
 function restoreDCRow(row){ api('restoreDC',{row:row},true).then(loadData); }
 
@@ -1056,9 +1212,17 @@ function submitTaxCode(){
   api('addTaxCode', p, true).then(function(){ loadData(); });
 }
 function editTaxRate(code, currentRate){
-  var newRate = prompt('New rate % for ' + code + ':', currentRate);
-  if(newRate === null || newRate === '') return;
-  if(isNaN(parseFloat(newRate))){ showToast('Enter a valid number', true); return; }
+  var html = '<h3>Edit tax rate</h3>'+
+    '<label>Tax code</label><input value="'+esc(code)+'" disabled style="background:var(--bg);">'+
+    '<label style="margin-top:10px;">New rate (%)</label><input id="modalNewRate" type="number" step="0.01" value="'+esc(currentRate)+'" autofocus>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
+    '<button class="btn primary" onclick="submitEditTaxRate(\''+esc(code).replace(/'/g,"\\'")+'\')">Save</button></div>';
+  openModal(html);
+}
+function submitEditTaxRate(code){
+  var newRate = val('modalNewRate');
+  if(newRate === '' || isNaN(parseFloat(newRate))){ showToast('Enter a valid number', true); return; }
+  closeModal();
   api('updateTaxCode', { code: code, rate: newRate }, true).then(function(){ loadData(); });
 }
 function toggleTaxActive(code, currentlyActive){
@@ -1078,6 +1242,9 @@ function renderAuditLog(){
 function val(id){ return document.getElementById(id).value; }
 
 // ---------- BOOT ----------
+injectFooters();
+setStatusPill(navigator.onLine);
+var vEl = document.getElementById('dashVersion'); if(vEl) vEl.textContent = DASHBOARD_VERSION;
 if(WEB_APP_URL){
   document.getElementById('app').style.display='flex';
   loadData();
